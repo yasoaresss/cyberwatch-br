@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CyberWatch BR — Monitoramento de Ataques Cibernéticos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg-base:    #040b12;
+    --bg-panel:   #070f18;
+    --bg-card:    #0a1520;
+    --bg-hover:   #0e1d2e;
+    --border:     #0f3050;
+    --border-glow:#1a5a8a;
+    --accent:     #00d4ff;
+    --accent2:    #ff3c6e;
+    --accent3:    #39ff14;
+    --accent4:    #ffa500;
+    --text-hi:    #e8f4fd;
+    --text-mid:   #7aaecf;
+    --text-lo:    #3a6a8a;
+    --red-crit:   #ff2244;
+    --orange-hi:  #ff7b00;
+    --yellow-med: #ffd000;
+    --green-low:  #39ff14;
+    --font-mono:  'Share Tech Mono', monospace;
+    --font-ui:    'Exo 2', sans-serif;
+    --font-head:  'Rajdhani', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: var(--bg-base);
+    color: var(--text-hi);
+    font-family: var(--font-ui);
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── SCANLINE OVERLAY ── */
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,212,255,.015) 2px, rgba(0,212,255,.015) 4px);
+    pointer-events: none; z-index: 9999;
+  }
+
+  /* ── TOPBAR ── */
+  #topbar {
+    height: 52px; min-height: 52px;
+    background: linear-gradient(90deg, #020810 0%, #040f1e 50%, #020810 100%);
+    border-bottom: 1px solid var(--border-glow);
+    display: flex; align-items: center; padding: 0 16px; gap: 20px;
+    position: relative; z-index: 100;
+    box-shadow: 0 2px 20px rgba(0,212,255,.12);
+  }
+  #topbar .logo {
+    font-family: var(--font-head); font-size: 20px; font-weight: 700;
+    letter-spacing: 3px; color: var(--accent);
+    text-shadow: 0 0 20px rgba(0,212,255,.7);
+    white-space: nowrap;
+  }
+  #topbar .logo span { color: var(--accent2); }
+  .topbar-divider { width: 1px; height: 28px; background: var(--border-glow); }
+  .status-pill {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-mid);
+  }
+  .status-pill .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent3);
+    box-shadow: 0 0 8px var(--accent3);
+    animation: blink 1.4s ease-in-out infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .topbar-stats { display: flex; gap: 24px; margin-left: 8px; }
+  .ts { display: flex; flex-direction: column; }
+  .ts-label { font-size: 9px; color: var(--text-lo); letter-spacing: 1px; text-transform: uppercase; }
+  .ts-value { font-family: var(--font-mono); font-size: 14px; color: var(--accent); }
+  .ts-value.red { color: var(--red-crit); text-shadow: 0 0 8px var(--red-crit); }
+  .ts-value.green { color: var(--accent3); }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+  .btn-pill {
+    padding: 5px 14px; border: 1px solid var(--border-glow);
+    background: rgba(0,212,255,.06); color: var(--accent);
+    font-family: var(--font-head); font-size: 12px; letter-spacing: 1px;
+    cursor: pointer; transition: all .2s;
+    text-transform: uppercase;
+  }
+  .btn-pill:hover { background: rgba(0,212,255,.15); box-shadow: 0 0 12px rgba(0,212,255,.3); }
+  .btn-pill.active { background: rgba(0,212,255,.2); border-color: var(--accent); }
+  #clock { font-family: var(--font-mono); font-size: 13px; color: var(--text-mid); }
+
+  /* ── MAIN LAYOUT ── */
+  #main {
+    flex: 1; display: grid; overflow: hidden;
+    grid-template-columns: 260px 1fr 280px;
+    grid-template-rows: 1fr;
+    gap: 1px; background: var(--border);
+  }
+
+  /* ── PANELS ── */
+  .panel {
+    background: var(--bg-panel);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
+    font-family: var(--font-head); font-size: 13px; font-weight: 600;
+    letter-spacing: 2px; text-transform: uppercase; color: var(--text-mid);
+    display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  }
+  .panel-header::before {
+    content: ''; width: 3px; height: 14px;
+    background: var(--accent); box-shadow: 0 0 8px var(--accent);
+  }
+  .panel-body { flex: 1; overflow-y: auto; padding: 10px 0; }
+  .panel-body::-webkit-scrollbar { width: 4px; }
+  .panel-body::-webkit-scrollbar-track { background: transparent; }
+  .panel-body::-webkit-scrollbar-thumb { background: var(--border-glow); }
+
+  /* ── LEFT PANEL ── */
+  #left-panel { grid-column: 1; }
+
+  /* STAT CARDS */
+  .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; padding: 0 0 1px 0; }
+  .stat-card {
+    background: var(--bg-card); padding: 12px 14px;
+    border-left: 3px solid transparent; transition: all .2s;
+  }
+  .stat-card:hover { background: var(--bg-hover); }
+  .stat-card.crit { border-color: var(--red-crit); }
+  .stat-card.high { border-color: var(--orange-hi); }
+  .stat-card.med  { border-color: var(--yellow-med); }
+  .stat-card.low  { border-color: var(--accent3); }
+  .stat-card.blue { border-color: var(--accent); }
+  .stat-card.pink { border-color: var(--accent2); }
+  .sc-label { font-size: 9px; color: var(--text-lo); letter-spacing: 1px; text-transform: uppercase; }
+  .sc-val { font-family: var(--font-mono); font-size: 22px; margin: 2px 0; }
+  .sc-val.crit { color: var(--red-crit); text-shadow: 0 0 10px rgba(255,34,68,.5); }
+  .sc-val.high { color: var(--orange-hi); }
+  .sc-val.med  { color: var(--yellow-med); }
+  .sc-val.low  { color: var(--accent3); }
+  .sc-val.blue { color: var(--accent); }
+  .sc-val.pink { color: var(--accent2); }
+  .sc-delta { font-size: 10px; color: var(--text-lo); }
+  .sc-delta span { color: var(--red-crit); }
+
+  /* ATTACK TYPE BARS */
+  .section-label {
+    padding: 10px 14px 6px;
+    font-size: 9px; color: var(--text-lo);
+    letter-spacing: 2px; text-transform: uppercase;
+  }
+  .atk-bar-row { padding: 4px 14px; }
+  .atk-bar-top { display: flex; justify-content: space-between; margin-bottom: 3px; }
+  .atk-bar-name { font-size: 11px; color: var(--text-mid); }
+  .atk-bar-pct  { font-family: var(--font-mono); font-size: 11px; color: var(--accent); }
+  .atk-bar-track { height: 4px; background: var(--bg-card); border-radius: 2px; }
+  .atk-bar-fill  { height: 4px; border-radius: 2px; transition: width 1s ease; }
+
+  /* TOP ORIGINS */
+  .origin-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 5px 14px; transition: background .15s;
+  }
+  .origin-row:hover { background: var(--bg-hover); }
+  .origin-rank { font-family: var(--font-mono); font-size: 11px; color: var(--text-lo); width: 16px; }
+  .origin-flag { font-size: 16px; }
+  .origin-name { flex: 1; font-size: 12px; color: var(--text-mid); }
+  .origin-count { font-family: var(--font-mono); font-size: 12px; color: var(--accent2); }
+  .origin-bar { width: 50px; height: 3px; background: var(--bg-card); border-radius: 2px; }
+  .origin-bar-fill { height: 3px; background: var(--accent2); border-radius: 2px; }
+
+  /* ── CENTER: MAP ── */
+  #center-panel {
+    grid-column: 2; position: relative;
+    display: flex; flex-direction: column;
+  }
+  #map-header {
+    padding: 8px 14px; background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+  }
+  #map-header .mh-title {
+    font-family: var(--font-head); font-size: 12px; letter-spacing: 2px;
+    color: var(--text-mid); text-transform: uppercase;
+  }
+  .filter-pills { display: flex; gap: 6px; margin-left: auto; }
+  .fpill {
+    padding: 3px 10px; font-size: 10px; letter-spacing: 1px;
+    font-family: var(--font-head); text-transform: uppercase;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--text-lo); cursor: pointer; transition: all .2s;
+  }
+  .fpill:hover, .fpill.active {
+    border-color: var(--accent); color: var(--accent);
+    background: rgba(0,212,255,.08);
+  }
+  #map { flex: 1; }
+  .leaflet-container { background: #020c14 !important; }
+
+  /* TICKER */
+  #ticker {
+    height: 30px; min-height: 30px;
+    background: rgba(0,0,0,.6); border-top: 1px solid var(--border);
+    display: flex; align-items: center; overflow: hidden;
+    flex-shrink: 0;
+  }
+  #ticker-label {
+    padding: 0 12px; font-family: var(--font-mono); font-size: 10px;
+    color: var(--accent2); border-right: 1px solid var(--border);
+    white-space: nowrap; flex-shrink: 0;
+  }
+  #ticker-content {
+    flex: 1; overflow: hidden; position: relative; height: 100%;
+  }
+  #ticker-inner {
+    display: flex; align-items: center; height: 100%;
+    white-space: nowrap;
+    animation: tickerScroll 60s linear infinite;
+  }
+  @keyframes tickerScroll { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+  .tick-item {
+    padding: 0 20px; font-family: var(--font-mono); font-size: 10px;
+    color: var(--text-mid);
+  }
+  .tick-item .crit-tag { color: var(--red-crit); }
+  .tick-item .high-tag { color: var(--orange-hi); }
+  .tick-item .low-tag  { color: var(--accent3); }
+
+  /* ── RIGHT PANEL ── */
+  #right-panel { grid-column: 3; }
+
+  /* FEED */
+  .feed-item {
+    padding: 8px 14px; border-bottom: 1px solid rgba(15,48,80,.5);
+    transition: background .15s; cursor: pointer;
+  }
+  .feed-item:hover { background: var(--bg-hover); }
+  .feed-top { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .severity-badge {
+    padding: 1px 7px; font-size: 9px; font-family: var(--font-mono);
+    letter-spacing: 1px; text-transform: uppercase; border-radius: 2px;
+  }
+  .sev-critical { background: rgba(255,34,68,.15); color: var(--red-crit); border: 1px solid rgba(255,34,68,.4); }
+  .sev-high     { background: rgba(255,123,0,.15); color: var(--orange-hi); border: 1px solid rgba(255,123,0,.4); }
+  .sev-medium   { background: rgba(255,208,0,.12); color: var(--yellow-med); border: 1px solid rgba(255,208,0,.3); }
+  .sev-low      { background: rgba(57,255,20,.1); color: var(--accent3); border: 1px solid rgba(57,255,20,.3); }
+  .feed-time { font-family: var(--font-mono); font-size: 10px; color: var(--text-lo); margin-left: auto; }
+  .feed-type { font-size: 11px; font-weight: 600; color: var(--text-hi); }
+  .feed-detail { font-size: 10px; color: var(--text-lo); margin-top: 2px; font-family: var(--font-mono); }
+  .feed-detail span { color: var(--accent); }
+
+  /* CHART WRAPPER */
+  .chart-wrap { padding: 10px 14px; }
+  .chart-title { font-size: 9px; color: var(--text-lo); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+  .chart-canvas-wrap { height: 120px; }
+
+  /* MAP custom styles */
+  .attack-marker {
+    width: 8px; height: 8px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,.3);
+    animation: pulse-marker 2s ease-in-out infinite;
+  }
+  @keyframes pulse-marker { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.5);opacity:.7} }
+  .attack-marker.crit { background: var(--red-crit); box-shadow: 0 0 10px var(--red-crit); }
+  .attack-marker.high { background: var(--orange-hi); box-shadow: 0 0 8px var(--orange-hi); }
+  .attack-marker.med  { background: var(--yellow-med); box-shadow: 0 0 6px var(--yellow-med); }
+  .attack-marker.low  { background: var(--accent3); box-shadow: 0 0 6px var(--accent3); }
+
+  /* LEGEND */
+  #map-legend {
+    position: absolute; bottom: 42px; left: 12px; z-index: 500;
+    background: rgba(4,11,18,.85); border: 1px solid var(--border-glow);
+    padding: 8px 12px; backdrop-filter: blur(4px);
+  }
+  .leg-row { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
+  .leg-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .leg-label { font-size: 10px; color: var(--text-mid); font-family: var(--font-mono); }
+
+  /* TOOLTIP */
+  .leaflet-popup-content-wrapper {
+    background: rgba(7,15,24,.95) !important;
+    border: 1px solid var(--border-glow) !important;
+    border-radius: 0 !important;
+    box-shadow: 0 0 20px rgba(0,212,255,.2) !important;
+    color: var(--text-hi) !important;
+  }
+  .leaflet-popup-tip { background: rgba(7,15,24,.95) !important; }
+  .popup-inner { font-family: var(--font-mono); font-size: 11px; line-height: 1.8; min-width: 200px; }
+  .popup-inner .pt { font-family: var(--font-head); font-size: 14px; font-weight: 700; letter-spacing: 2px; }
+  .popup-inner .pk { color: var(--text-lo); }
+  .popup-inner .pv { color: var(--accent); }
+  .popup-inner .pv.red { color: var(--red-crit); }
+  .popup-inner .pv.orange { color: var(--orange-hi); }
+  .popup-inner .pv.yellow { color: var(--yellow-med); }
+  .popup-inner .pv.green { color: var(--accent3); }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div id="topbar">
+  <div class="logo">CYBER<span>WATCH</span> BR</div>
+  <div class="topbar-divider"></div>
+  <div class="status-pill">
+    <div class="dot"></div>
+    SISTEMA OPERACIONAL — TEMPO REAL
+  </div>
+  <div class="topbar-divider"></div>
+  <div class="topbar-stats">
+    <div class="ts">
+      <div class="ts-label">Ataques / min</div>
+      <div class="ts-value red" id="atk-min">347</div>
+    </div>
+    <div class="ts">
+      <div class="ts-label">Total hoje</div>
+      <div class="ts-value" id="atk-total">182.419</div>
+    </div>
+    <div class="ts">
+      <div class="ts-label">IPs únicos</div>
+      <div class="ts-value" id="atk-ips">24.881</div>
+    </div>
+    <div class="ts">
+      <div class="ts-label">Países origem</div>
+      <div class="ts-value green">63</div>
+    </div>
+    <div class="ts">
+      <div class="ts-label">Alertas críticos</div>
+      <div class="ts-value red" id="atk-crit">12</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <button class="btn-pill active">Ao Vivo</button>
+    <button class="btn-pill">Histórico</button>
+    <button class="btn-pill">Relatório</button>
+    <div id="clock">--:--:--</div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- LEFT PANEL -->
+  <div class="panel" id="left-panel">
+    <div class="panel-header">Painel de Métricas</div>
+    <div class="panel-body">
+
+      <div class="stat-row">
+        <div class="stat-card crit">
+          <div class="sc-label">Crítico</div>
+          <div class="sc-val crit" id="cnt-crit">1.247</div>
+          <div class="sc-delta"><span>▲ 18%</span> vs ontem</div>
+        </div>
+        <div class="stat-card high">
+          <div class="sc-label">Alto</div>
+          <div class="sc-val high" id="cnt-high">8.834</div>
+          <div class="sc-delta"><span>▲ 7%</span> vs ontem</div>
+        </div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-card med">
+          <div class="sc-label">Médio</div>
+          <div class="sc-val med">34.112</div>
+          <div class="sc-delta">▲ 3% vs ontem</div>
+        </div>
+        <div class="stat-card low">
+          <div class="sc-label">Baixo</div>
+          <div class="sc-val low">138.226</div>
+          <div class="sc-delta">▼ 2% vs ontem</div>
+        </div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-card blue">
+          <div class="sc-label">Honeypot A</div>
+          <div class="sc-val blue">4.392</div>
+          <div class="sc-delta">VPS São Paulo</div>
+        </div>
+        <div class="stat-card pink">
+          <div class="sc-label">Honeypot B</div>
+          <div class="sc-val pink">2.108</div>
+          <div class="sc-delta">VPS Recife</div>
+        </div>
+      </div>
+
+      <div class="section-label">Tipos de Ataque</div>
+
+      <div class="atk-bar-row">
+        <div class="atk-bar-top"><span class="atk-bar-name">Brute Force SSH</span><span class="atk-bar-pct">34%</span></div>
+        <div class="atk-bar-track"><div class="atk-bar-fill" style="width:34%;background:#ff3c6e"></div></div>
+      </div>
+      <div class="atk-bar-row">
+        <div class="atk-bar-top"><span class="atk-bar-name">Port Scan</span><span class="atk-bar-pct">21%</span></div>
+        <div class="atk-bar-track"><div class="atk-bar-fill" style="width:21%;background:#ffa500"></div></div>
+      </div>
+      <div class="atk-bar-row">
+        <div class="atk-bar-top"><span class="atk-bar-name">DDoS / Flood</span><span class="atk-bar-pct">18%</span></div>
+        <div class="atk-bar-track"><div class="atk-bar-fill" style="width:18%;background:#ff2244"></div></div>
+      </div>
+      <div class="atk-bar-row">
+        <div class="atk-bar-top"><span class="atk-bar-name">SQL Injection</span><span class="atk-bar-pct">11%</span></div>
+        <div class="atk-bar-track"><div class="atk-bar-fill" style="width:11%;background:#ffd000"></div></div>
+      </div>
+      <div class="atk-bar-row">
+        <div class="atk-bar-top"><span class="atk-bar-name">Phishing / C2</span><span class="atk-bar-pct">8%</span></div>
+        <div class="atk-bar-track"><div class="atk-bar-fill" style="width:8%;background:#00d4ff"></div></div>
+      </div>
+      <div class="atk-bar-row">
+        <div class="atk-bar-top"><span class="atk-bar-name">Exploit CVE</span><span class="atk-bar-pct">5%</span></div>
+        <div class="atk-bar-track"><div class="atk-bar-fill" style="width:5%;background:#8a2be2"></div></div>
+      </div>
+      <div class="atk-bar-row">
+        <div class="atk-bar-top"><span class="atk-bar-name">Outros</span><span class="atk-bar-pct">3%</span></div>
+        <div class="atk-bar-track"><div class="atk-bar-fill" style="width:3%;background:#39ff14"></div></div>
+      </div>
+
+      <div class="section-label">Top Origens</div>
+
+      <div class="origin-row">
+        <div class="origin-rank">#1</div>
+        <div class="origin-flag">🇨🇳</div>
+        <div class="origin-name">China</div>
+        <div class="origin-count">38.412</div>
+        <div class="origin-bar"><div class="origin-bar-fill" style="width:100%"></div></div>
+      </div>
+      <div class="origin-row">
+        <div class="origin-rank">#2</div>
+        <div class="origin-flag">🇷🇺</div>
+        <div class="origin-name">Rússia</div>
+        <div class="origin-count">22.187</div>
+        <div class="origin-bar"><div class="origin-bar-fill" style="width:58%"></div></div>
+      </div>
+      <div class="origin-row">
+        <div class="origin-rank">#3</div>
+        <div class="origin-flag">🇺🇸</div>
+        <div class="origin-name">EUA</div>
+        <div class="origin-count">18.903</div>
+        <div class="origin-bar"><div class="origin-bar-fill" style="width:49%"></div></div>
+      </div>
+      <div class="origin-row">
+        <div class="origin-rank">#4</div>
+        <div class="origin-flag">🇧🇷</div>
+        <div class="origin-name">Brasil</div>
+        <div class="origin-count">14.221</div>
+        <div class="origin-bar"><div class="origin-bar-fill" style="width:37%"></div></div>
+      </div>
+      <div class="origin-row">
+        <div class="origin-rank">#5</div>
+        <div class="origin-flag">🇳🇱</div>
+        <div class="origin-name">Holanda</div>
+        <div class="origin-count">9.447</div>
+        <div class="origin-bar"><div class="origin-bar-fill" style="width:25%"></div></div>
+      </div>
+      <div class="origin-row">
+        <div class="origin-rank">#6</div>
+        <div class="origin-flag">🇩🇪</div>
+        <div class="origin-name">Alemanha</div>
+        <div class="origin-count">7.831</div>
+        <div class="origin-bar"><div class="origin-bar-fill" style="width:20%"></div></div>
+      </div>
+      <div class="origin-row">
+        <div class="origin-rank">#7</div>
+        <div class="origin-flag">🇰🇷</div>
+        <div class="origin-name">Coreia do Sul</div>
+        <div class="origin-count">5.604</div>
+        <div class="origin-bar"><div class="origin-bar-fill" style="width:15%"></div></div>
+      </div>
+      <div class="origin-row">
+        <div class="origin-rank">#8</div>
+        <div class="origin-flag">🇮🇳</div>
+        <div class="origin-name">Índia</div>
+        <div class="origin-count">4.218</div>
+        <div class="origin-bar"><div class="origin-bar-fill" style="width:11%"></div></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- CENTER: MAP -->
+  <div class="panel" id="center-panel">
+    <div id="map-header">
+      <div class="mh-title">🇧🇷 Mapa de Incidentes — Brasil</div>
+      <div class="filter-pills">
+        <button class="fpill active">Todos</button>
+        <button class="fpill">Crítico</button>
+        <button class="fpill">DDoS</button>
+        <button class="fpill">Brute Force</button>
+        <button class="fpill">Honeypot</button>
+      </div>
+    </div>
+    <div id="map"></div>
+
+    <!-- Legend -->
+    <div id="map-legend">
+      <div class="leg-row"><div class="leg-dot" style="background:#ff2244;box-shadow:0 0 6px #ff2244"></div><div class="leg-label">Crítico</div></div>
+      <div class="leg-row"><div class="leg-dot" style="background:#ff7b00;box-shadow:0 0 6px #ff7b00"></div><div class="leg-label">Alto</div></div>
+      <div class="leg-row"><div class="leg-dot" style="background:#ffd000;box-shadow:0 0 6px #ffd000"></div><div class="leg-label">Médio</div></div>
+      <div class="leg-row"><div class="leg-dot" style="background:#39ff14;box-shadow:0 0 6px #39ff14"></div><div class="leg-label">Baixo</div></div>
+    </div>
+
+    <!-- Ticker -->
+    <div id="ticker">
+      <div id="ticker-label">▶ LIVE FEED</div>
+      <div id="ticker-content">
+        <div id="ticker-inner"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="panel" id="right-panel">
+    <div class="panel-header">Feed de Incidentes</div>
+    <div class="panel-body" id="feed-body">
+      <!-- populated by JS -->
+    </div>
+    <div style="border-top:1px solid var(--border); padding: 8px 0 0 0; flex-shrink:0;">
+      <div class="chart-wrap">
+        <div class="chart-title">Ataques nas últimas 12h</div>
+        <div class="chart-canvas-wrap"><canvas id="timelineChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── CLOCK ──
+function updateClock() {
+  const d = new Date();
+  document.getElementById('clock').textContent =
+    d.toLocaleTimeString('pt-BR', {hour12:false}) + ' BRT';
+}
+setInterval(updateClock, 1000); updateClock();
+
+// ── MAP ──
+const map = L.map('map', {
+  center: [-14.2, -51.9], zoom: 4,
+  zoomControl: true, attributionControl: false
+});
+
+// Dark tile layer
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_matter/{z}/{x}/{y}{r}.png', {
+  maxZoom: 18
+}).addTo(map);
+
+// ── ATTACK DATA ──
+const attacks = [
+  // São Paulo region
+  {lat:-23.55,lng:-46.63, city:"São Paulo/SP", type:"Brute Force SSH", sev:"critical", ip_src:"103.42.71.22", ip_dst:"177.52.30.14", port:22, country:"China"},
+  {lat:-23.60,lng:-46.70, city:"São Paulo/SP", type:"DDoS UDP Flood", sev:"critical", ip_src:"45.155.91.7", ip_dst:"200.145.12.88", port:80, country:"Rússia"},
+  {lat:-23.45,lng:-46.50, city:"Guarulhos/SP", type:"SQL Injection", sev:"high", ip_src:"185.220.101.14", ip_dst:"177.23.44.12", port:443, country:"Holanda"},
+  {lat:-23.70,lng:-46.55, city:"Santo André/SP", type:"Port Scan", sev:"medium", ip_src:"89.248.167.12", ip_dst:"200.20.10.5", port:0, country:"Alemanha"},
+  {lat:-23.53,lng:-47.46, city:"Sorocaba/SP", type:"Exploit CVE-2024-1234", sev:"high", ip_src:"194.165.16.11", ip_dst:"179.221.33.7", port:8080, country:"Rússia"},
+  // Rio de Janeiro
+  {lat:-22.90,lng:-43.17, city:"Rio de Janeiro/RJ", type:"Brute Force RDP", sev:"critical", ip_src:"45.66.209.10", ip_dst:"179.108.55.3", port:3389, country:"EUA"},
+  {lat:-22.75,lng:-43.45, city:"Nova Iguaçu/RJ", type:"Phishing C2", sev:"high", ip_src:"193.32.162.88", ip_dst:"201.62.44.99", port:443, country:"Rússia"},
+  {lat:-22.95,lng:-43.10, city:"São Gonçalo/RJ", type:"Port Scan", sev:"low", ip_src:"77.247.181.162", ip_dst:"200.18.7.14", port:0, country:"Alemanha"},
+  // Minas Gerais
+  {lat:-19.92,lng:-43.94, city:"Belo Horizonte/MG", type:"SQL Injection", sev:"high", ip_src:"103.42.71.8", ip_dst:"200.239.8.11", port:3306, country:"China"},
+  {lat:-19.73,lng:-47.93, city:"Uberaba/MG", type:"Brute Force SSH", sev:"medium", ip_src:"45.141.21.9", ip_dst:"187.45.22.3", port:22, country:"EUA"},
+  // Sul
+  {lat:-30.03,lng:-51.22, city:"Porto Alegre/RS", type:"DDoS TCP SYN", sev:"high", ip_src:"103.241.200.4", ip_dst:"179.97.10.21", port:80, country:"China"},
+  {lat:-27.59,lng:-48.54, city:"Florianópolis/SC", type:"Port Scan", sev:"medium", ip_src:"89.234.157.12", ip_dst:"200.175.4.19", port:0, country:"Coreia do Sul"},
+  {lat:-25.42,lng:-49.27, city:"Curitiba/PR", type:"Exploit CVE-2023-4966", sev:"critical", ip_src:"45.9.148.199", ip_dst:"191.234.8.7", port:4433, country:"Rússia"},
+  // Nordeste
+  {lat:-3.71,lng:-38.54, city:"Fortaleza/CE", type:"Brute Force SSH", sev:"high", ip_src:"185.196.8.199", ip_dst:"179.188.44.2", port:22, country:"Rússia"},
+  {lat:-8.05,lng:-34.88, city:"Recife/PE", type:"DDoS HTTP Flood", sev:"critical", ip_src:"103.74.103.11", ip_dst:"200.246.8.12", port:80, country:"China"},
+  {lat:-12.97,lng:-38.51, city:"Salvador/BA", type:"SQL Injection", sev:"medium", ip_src:"194.36.144.87", ip_dst:"200.150.1.8", port:5432, country:"Holanda"},
+  {lat:-2.53,lng:-44.30, city:"São Luís/MA", type:"Port Scan", sev:"low", ip_src:"77.83.36.22", ip_dst:"177.8.33.9", port:0, country:"Alemanha"},
+  // Centro-Oeste / Norte
+  {lat:-15.77,lng:-47.92, city:"Brasília/DF", type:"Spear Phishing", sev:"critical", ip_src:"79.137.35.195", ip_dst:"200.26.44.1", port:25, country:"Rússia"},
+  {lat:-20.44,lng:-54.64, city:"Campo Grande/MS", type:"Brute Force FTP", sev:"medium", ip_src:"45.135.232.7", ip_dst:"177.99.2.11", port:21, country:"EUA"},
+  {lat:-1.46,lng:-48.50, city:"Belém/PA", type:"Port Scan", sev:"low", ip_src:"194.61.24.99", ip_dst:"200.152.44.3", port:0, country:"China"},
+  {lat:-3.10,lng:-60.02, city:"Manaus/AM", type:"Brute Force SSH", sev:"high", ip_src:"45.155.204.23", ip_dst:"177.134.2.8", port:22, country:"China"},
+  {lat:-10.21,lng:-48.36, city:"Palmas/TO", type:"Exploit CVE-2024-0519", sev:"high", ip_src:"89.185.24.8", ip_dst:"177.33.4.12", port:9090, country:"Índia"},
+  // Honeypot markers
+  {lat:-23.54,lng:-46.65, city:"HONEYPOT São Paulo", type:"Cowrie SSH Trap", sev:"critical", ip_src:"múltiplos IPs", ip_dst:"177.100.0.1", port:22, country:"—", isHoneypot:true},
+  {lat:-8.06,lng:-34.89, city:"HONEYPOT Recife", type:"Cowrie SSH Trap", sev:"high", ip_src:"múltiplos IPs", ip_dst:"200.202.0.1", port:22, country:"—", isHoneypot:true},
+];
+
+const sevColor = { critical:'crit', high:'high', medium:'med', low:'low' };
+const sevHex   = { critical:'#ff2244', high:'#ff7b00', medium:'#ffd000', low:'#39ff14' };
+
+attacks.forEach(a => {
+  const cls = sevColor[a.sev] || 'low';
+  const icon = L.divIcon({
+    className: '',
+    html: `<div class="attack-marker ${cls}${a.isHoneypot?' honeypot':''}"></div>`,
+    iconSize: [10, 10], iconAnchor: [5, 5]
+  });
+
+  const sevLabel = {critical:'🔴 CRÍTICO', high:'🟠 ALTO', medium:'🟡 MÉDIO', low:'🟢 BAIXO'};
+  const popup = `
+    <div class="popup-inner">
+      <div class="pt">${a.city}</div>
+      <hr style="border:none;border-top:1px solid #0f3050;margin:4px 0">
+      <div><span class="pk">Tipo: </span><span class="pv ${cls}">${a.type}</span></div>
+      <div><span class="pk">Severidade: </span><span class="pv ${cls}">${sevLabel[a.sev]}</span></div>
+      <div><span class="pk">IP Origem: </span><span class="pv">${a.ip_src}</span></div>
+      <div><span class="pk">IP Destino: </span><span class="pv">${a.ip_dst}</span></div>
+      <div><span class="pk">Porta: </span><span class="pv">${a.port || 'N/A'}</span></div>
+      <div><span class="pk">País Origem: </span><span class="pv">${a.country}</span></div>
+    </div>`;
+
+  L.marker([a.lat, a.lng], {icon})
+    .bindPopup(popup, {maxWidth:260})
+    .addTo(map);
+});
+
+// Draw attack arcs (polylines simulating origin→destination)
+const arcPairs = [
+  {from:[-23.55,-46.63], to:[-22.90,-43.17], sev:'critical'},
+  {from:[-22.90,-43.17], to:[-15.77,-47.92], sev:'high'},
+  {from:[-30.03,-51.22], to:[-23.55,-46.63], sev:'medium'},
+  {from:[-3.71,-38.54],  to:[-15.77,-47.92], sev:'high'},
+  {from:[-8.05,-34.88],  to:[-19.92,-43.94], sev:'critical'},
+  {from:[-25.42,-49.27], to:[-22.90,-43.17], sev:'medium'},
+  {from:[-19.92,-43.94], to:[-15.77,-47.92], sev:'high'},
+  {from:[-1.46,-48.50],  to:[-23.55,-46.63], sev:'low'},
+  {from:[-12.97,-38.51], to:[-19.92,-43.94], sev:'medium'},
+];
+
+arcPairs.forEach(p => {
+  L.polyline([p.from, p.to], {
+    color: sevHex[p.sev],
+    weight: 1,
+    opacity: 0.35,
+    dashArray: '4 6'
+  }).addTo(map);
+});
+
+// ── FEED ──
+const feedData = [
+  {sev:'critical', type:'DDoS UDP Flood', detail:'45.155.91.7 → 200.145.12.88:80', time:'agora'},
+  {sev:'critical', type:'Brute Force RDP', detail:'45.66.209.10 → 179.108.55.3:3389', time:'1min'},
+  {sev:'critical', type:'Spear Phishing', detail:'79.137.35.195 → 200.26.44.1:25', time:'2min'},
+  {sev:'high',     type:'SQL Injection', detail:'103.42.71.8 → 200.239.8.11:3306', time:'3min'},
+  {sev:'high',     type:'Brute Force SSH', detail:'185.196.8.199 → 179.188.44.2:22', time:'4min'},
+  {sev:'high',     type:'DDoS TCP SYN', detail:'103.241.200.4 → 179.97.10.21:80', time:'5min'},
+  {sev:'high',     type:'Exploit CVE-2024-1234', detail:'185.220.101.14 → 177.23.44.12:443', time:'6min'},
+  {sev:'medium',   type:'Port Scan', detail:'89.248.167.12 → 200.20.10.5', time:'7min'},
+  {sev:'medium',   type:'Brute Force SSH', detail:'45.141.21.9 → 187.45.22.3:22', time:'8min'},
+  {sev:'medium',   type:'SQL Injection', detail:'194.36.144.87 → 200.150.1.8:5432', time:'9min'},
+  {sev:'low',      type:'Port Scan', detail:'77.247.181.162 → 200.18.7.14', time:'10min'},
+  {sev:'low',      type:'Port Scan', detail:'77.83.36.22 → 177.8.33.9', time:'11min'},
+];
+
+const sevBadge = {
+  critical: '<span class="severity-badge sev-critical">CRÍTICO</span>',
+  high:     '<span class="severity-badge sev-high">ALTO</span>',
+  medium:   '<span class="severity-badge sev-medium">MÉDIO</span>',
+  low:      '<span class="severity-badge sev-low">BAIXO</span>',
+};
+
+const feedBody = document.getElementById('feed-body');
+feedData.forEach(f => {
+  feedBody.innerHTML += `
+    <div class="feed-item">
+      <div class="feed-top">
+        ${sevBadge[f.sev]}
+        <div class="feed-time">${f.time}</div>
+      </div>
+      <div class="feed-type">${f.type}</div>
+      <div class="feed-detail"><span>${f.detail}</span></div>
+    </div>`;
+});
+
+// ── TICKER ──
+const tickerItems = [
+  {sev:'crit', text:'[CRÍTICO] DDoS UDP 45.155.91.7 → São Paulo/SP — 48Gbps'},
+  {sev:'high', text:'[ALTO] Brute Force SSH 185.196.8.199 → Fortaleza/CE — 4.200 tentativas'},
+  {sev:'crit', text:'[CRÍTICO] Spear Phishing 79.137.35.195 → Brasília/DF — Gov target'},
+  {sev:'high', text:'[ALTO] Exploit CVE-2024-4966 194.165.16.11 → Sorocaba/SP'},
+  {sev:'crit', text:'[CRÍTICO] Brute Force RDP 45.66.209.10 → Rio de Janeiro/RJ — 8.440 tentativas'},
+  {sev:'low',  text:'[BAIXO] Port Scan 77.83.36.22 → São Luís/MA — 65.535 portas'},
+  {sev:'high', text:'[ALTO] SQL Injection 103.42.71.8 → Belo Horizonte/MG — DB exposto'},
+  {sev:'crit', text:'[CRÍTICO] DDoS TCP SYN 103.241.200.4 → Porto Alegre/RS'},
+];
+
+const inner = document.getElementById('ticker-inner');
+[...tickerItems, ...tickerItems].forEach(t => {
+  const cls = t.sev === 'crit' ? 'crit-tag' : t.sev === 'high' ? 'high-tag' : 'low-tag';
+  inner.innerHTML += `<span class="tick-item"><span class="${cls}">${t.text}</span> &nbsp;|&nbsp; </span>`;
+});
+
+// ── TIMELINE CHART ──
+const labels = ['00h','01h','02h','03h','04h','05h','06h','07h','08h','09h','10h','11h'];
+const data   = [4200,3800,5100,4700,6200,7800,9100,11400,14200,16700,18200,15800];
+
+new Chart(document.getElementById('timelineChart'), {
+  type: 'line',
+  data: {
+    labels,
+    datasets: [{
+      data,
+      borderColor: '#00d4ff',
+      backgroundColor: 'rgba(0,212,255,.08)',
+      borderWidth: 1.5,
+      pointRadius: 2,
+      pointBackgroundColor: '#00d4ff',
+      fill: true,
+      tension: 0.4,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: {
+        ticks: { color: '#3a6a8a', font: { family: 'Share Tech Mono', size: 9 } },
+        grid:  { color: 'rgba(15,48,80,.4)' }
+      },
+      y: {
+        ticks: { color: '#3a6a8a', font: { family: 'Share Tech Mono', size: 9 },
+          callback: v => v >= 1000 ? (v/1000).toFixed(0)+'k' : v },
+        grid:  { color: 'rgba(15,48,80,.4)' }
+      }
+    }
+  }
+});
+
+// ── LIVE COUNTER SIMULATION ──
+let total = 182419, ips = 24881, crits = 12, atkPerMin = 347;
+setInterval(() => {
+  const add = Math.floor(Math.random() * 12) + 3;
+  total += add; ips += Math.random() > .7 ? 1 : 0;
+  atkPerMin = 330 + Math.floor(Math.random() * 40);
+  if (Math.random() > .92) crits++;
+  document.getElementById('atk-total').textContent  = total.toLocaleString('pt-BR');
+  document.getElementById('atk-ips').textContent    = ips.toLocaleString('pt-BR');
+  document.getElementById('atk-min').textContent    = atkPerMin;
+  document.getElementById('atk-crit').textContent   = crits;
+  const h = Math.floor(8834 + (Math.random() - .5) * 40);
+  document.getElementById('cnt-high').textContent   = h.toLocaleString('pt-BR');
+  const c = Math.floor(1247 + (Math.random() - .5) * 20);
+  document.getElementById('cnt-crit').textContent   = c.toLocaleString('pt-BR');
+}, 1800);
+
+// ── FILTER PILLS ──
+document.querySelectorAll('.fpill').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.fpill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+document.querySelectorAll('.btn-pill').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.btn-pill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+</script>
+</body>
+</html>
