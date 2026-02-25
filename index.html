@@ -43,7 +43,6 @@
     flex-direction: column;
   }
 
-  /* ── SCANLINE OVERLAY ── */
   body::after {
     content: '';
     position: fixed; inset: 0;
@@ -51,7 +50,6 @@
     pointer-events: none; z-index: 9999;
   }
 
-  /* ── TOPBAR ── */
   #topbar {
     height: 52px; min-height: 52px;
     background: linear-gradient(90deg, #020810 0%, #040f1e 50%, #020810 100%);
@@ -97,7 +95,6 @@
   .btn-pill.active { background: rgba(0,212,255,.2); border-color: var(--accent); }
   #clock { font-family: var(--font-mono); font-size: 13px; color: var(--text-mid); }
 
-  /* ── MAIN LAYOUT ── */
   #main {
     flex: 1; display: grid; overflow: hidden;
     grid-template-columns: 260px 1fr 280px;
@@ -105,7 +102,6 @@
     gap: 1px; background: var(--border);
   }
 
-  /* ── PANELS ── */
   .panel {
     background: var(--bg-panel);
     display: flex; flex-direction: column;
@@ -126,10 +122,8 @@
   .panel-body::-webkit-scrollbar-track { background: transparent; }
   .panel-body::-webkit-scrollbar-thumb { background: var(--border-glow); }
 
-  /* ── LEFT PANEL ── */
   #left-panel { grid-column: 1; }
 
-  /* STAT CARDS */
   .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; padding: 0 0 1px 0; }
   .stat-card {
     background: var(--bg-card); padding: 12px 14px;
@@ -153,7 +147,6 @@
   .sc-delta { font-size: 10px; color: var(--text-lo); }
   .sc-delta span { color: var(--red-crit); }
 
-  /* ATTACK TYPE BARS */
   .section-label {
     padding: 10px 14px 6px;
     font-size: 9px; color: var(--text-lo);
@@ -166,7 +159,6 @@
   .atk-bar-track { height: 4px; background: var(--bg-card); border-radius: 2px; }
   .atk-bar-fill  { height: 4px; border-radius: 2px; transition: width 1s ease; }
 
-  /* TOP ORIGINS */
   .origin-row {
     display: flex; align-items: center; gap: 10px;
     padding: 5px 14px; transition: background .15s;
@@ -179,7 +171,6 @@
   .origin-bar { width: 50px; height: 3px; background: var(--bg-card); border-radius: 2px; }
   .origin-bar-fill { height: 3px; background: var(--accent2); border-radius: 2px; }
 
-  /* ── CENTER: MAP ── */
   #center-panel {
     grid-column: 2; position: relative;
     display: flex; flex-direction: column;
@@ -207,7 +198,6 @@
   #map { flex: 1; }
   .leaflet-container { background: #020c14 !important; }
 
-  /* TICKER */
   #ticker {
     height: 30px; min-height: 30px;
     background: rgba(0,0,0,.6); border-top: 1px solid var(--border);
@@ -236,10 +226,8 @@
   .tick-item .high-tag { color: var(--orange-hi); }
   .tick-item .low-tag  { color: var(--accent3); }
 
-  /* ── RIGHT PANEL ── */
   #right-panel { grid-column: 3; }
 
-  /* FEED */
   .feed-item {
     padding: 8px 14px; border-bottom: 1px solid rgba(15,48,80,.5);
     transition: background .15s; cursor: pointer;
@@ -259,12 +247,10 @@
   .feed-detail { font-size: 10px; color: var(--text-lo); margin-top: 2px; font-family: var(--font-mono); }
   .feed-detail span { color: var(--accent); }
 
-  /* CHART WRAPPER */
   .chart-wrap { padding: 10px 14px; }
   .chart-title { font-size: 9px; color: var(--text-lo); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
   .chart-canvas-wrap { height: 120px; }
 
-  /* MAP custom styles */
   .attack-marker {
     width: 8px; height: 8px; border-radius: 50%;
     border: 1px solid rgba(255,255,255,.3);
@@ -276,7 +262,6 @@
   .attack-marker.med  { background: var(--yellow-med); box-shadow: 0 0 6px var(--yellow-med); }
   .attack-marker.low  { background: var(--accent3); box-shadow: 0 0 6px var(--accent3); }
 
-  /* LEGEND */
   #map-legend {
     position: absolute; bottom: 42px; left: 12px; z-index: 500;
     background: rgba(4,11,18,.85); border: 1px solid var(--border-glow);
@@ -286,7 +271,6 @@
   .leg-dot { width: 8px; height: 8px; border-radius: 50%; }
   .leg-label { font-size: 10px; color: var(--text-mid); font-family: var(--font-mono); }
 
-  /* TOOLTIP */
   .leaflet-popup-content-wrapper {
     background: rgba(7,15,24,.95) !important;
     border: 1px solid var(--border-glow) !important;
@@ -307,7 +291,6 @@
 </head>
 <body>
 
-<!-- TOPBAR -->
 <div id="topbar">
   <div class="logo">CYBER<span>WATCH</span> BR</div>
   <div class="topbar-divider"></div>
@@ -346,10 +329,8 @@
   </div>
 </div>
 
-<!-- MAIN -->
 <div id="main">
 
-  <!-- LEFT PANEL -->
   <div class="panel" id="left-panel">
     <div class="panel-header">Painel de Métricas</div>
     <div class="panel-body">
@@ -484,7 +465,6 @@
     </div>
   </div>
 
-  <!-- CENTER: MAP -->
   <div class="panel" id="center-panel">
     <div id="map-header">
       <div class="mh-title">🇧🇷 Mapa de Incidentes — Brasil</div>
@@ -498,7 +478,6 @@
     </div>
     <div id="map"></div>
 
-    <!-- Legend -->
     <div id="map-legend">
       <div class="leg-row"><div class="leg-dot" style="background:#ff2244;box-shadow:0 0 6px #ff2244"></div><div class="leg-label">Crítico</div></div>
       <div class="leg-row"><div class="leg-dot" style="background:#ff7b00;box-shadow:0 0 6px #ff7b00"></div><div class="leg-label">Alto</div></div>
@@ -506,7 +485,6 @@
       <div class="leg-row"><div class="leg-dot" style="background:#39ff14;box-shadow:0 0 6px #39ff14"></div><div class="leg-label">Baixo</div></div>
     </div>
 
-    <!-- Ticker -->
     <div id="ticker">
       <div id="ticker-label">▶ LIVE FEED</div>
       <div id="ticker-content">
@@ -515,11 +493,9 @@
     </div>
   </div>
 
-  <!-- RIGHT PANEL -->
   <div class="panel" id="right-panel">
     <div class="panel-header">Feed de Incidentes</div>
     <div class="panel-body" id="feed-body">
-      <!-- populated by JS -->
     </div>
     <div style="border-top:1px solid var(--border); padding: 8px 0 0 0; flex-shrink:0;">
       <div class="chart-wrap">
@@ -532,7 +508,6 @@
 </div>
 
 <script>
-// ── CLOCK ──
 function updateClock() {
   const d = new Date();
   document.getElementById('clock').textContent =
@@ -540,48 +515,44 @@ function updateClock() {
 }
 setInterval(updateClock, 1000); updateClock();
 
-// ── MAP ──
 const map = L.map('map', {
   center: [-14.2, -51.9], zoom: 4,
   zoomControl: true, attributionControl: false
 });
 
-// Dark tile layer
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_matter/{z}/{x}/{y}{r}.png', {
   maxZoom: 18
 }).addTo(map);
 
-// ── ATTACK DATA ──
 const attacks = [
-  // São Paulo region
   {lat:-23.55,lng:-46.63, city:"São Paulo/SP", type:"Brute Force SSH", sev:"critical", ip_src:"103.42.71.22", ip_dst:"177.52.30.14", port:22, country:"China"},
   {lat:-23.60,lng:-46.70, city:"São Paulo/SP", type:"DDoS UDP Flood", sev:"critical", ip_src:"45.155.91.7", ip_dst:"200.145.12.88", port:80, country:"Rússia"},
   {lat:-23.45,lng:-46.50, city:"Guarulhos/SP", type:"SQL Injection", sev:"high", ip_src:"185.220.101.14", ip_dst:"177.23.44.12", port:443, country:"Holanda"},
   {lat:-23.70,lng:-46.55, city:"Santo André/SP", type:"Port Scan", sev:"medium", ip_src:"89.248.167.12", ip_dst:"200.20.10.5", port:0, country:"Alemanha"},
   {lat:-23.53,lng:-47.46, city:"Sorocaba/SP", type:"Exploit CVE-2024-1234", sev:"high", ip_src:"194.165.16.11", ip_dst:"179.221.33.7", port:8080, country:"Rússia"},
-  // Rio de Janeiro
+
   {lat:-22.90,lng:-43.17, city:"Rio de Janeiro/RJ", type:"Brute Force RDP", sev:"critical", ip_src:"45.66.209.10", ip_dst:"179.108.55.3", port:3389, country:"EUA"},
   {lat:-22.75,lng:-43.45, city:"Nova Iguaçu/RJ", type:"Phishing C2", sev:"high", ip_src:"193.32.162.88", ip_dst:"201.62.44.99", port:443, country:"Rússia"},
   {lat:-22.95,lng:-43.10, city:"São Gonçalo/RJ", type:"Port Scan", sev:"low", ip_src:"77.247.181.162", ip_dst:"200.18.7.14", port:0, country:"Alemanha"},
-  // Minas Gerais
+
   {lat:-19.92,lng:-43.94, city:"Belo Horizonte/MG", type:"SQL Injection", sev:"high", ip_src:"103.42.71.8", ip_dst:"200.239.8.11", port:3306, country:"China"},
   {lat:-19.73,lng:-47.93, city:"Uberaba/MG", type:"Brute Force SSH", sev:"medium", ip_src:"45.141.21.9", ip_dst:"187.45.22.3", port:22, country:"EUA"},
-  // Sul
+
   {lat:-30.03,lng:-51.22, city:"Porto Alegre/RS", type:"DDoS TCP SYN", sev:"high", ip_src:"103.241.200.4", ip_dst:"179.97.10.21", port:80, country:"China"},
   {lat:-27.59,lng:-48.54, city:"Florianópolis/SC", type:"Port Scan", sev:"medium", ip_src:"89.234.157.12", ip_dst:"200.175.4.19", port:0, country:"Coreia do Sul"},
   {lat:-25.42,lng:-49.27, city:"Curitiba/PR", type:"Exploit CVE-2023-4966", sev:"critical", ip_src:"45.9.148.199", ip_dst:"191.234.8.7", port:4433, country:"Rússia"},
-  // Nordeste
+
   {lat:-3.71,lng:-38.54, city:"Fortaleza/CE", type:"Brute Force SSH", sev:"high", ip_src:"185.196.8.199", ip_dst:"179.188.44.2", port:22, country:"Rússia"},
   {lat:-8.05,lng:-34.88, city:"Recife/PE", type:"DDoS HTTP Flood", sev:"critical", ip_src:"103.74.103.11", ip_dst:"200.246.8.12", port:80, country:"China"},
   {lat:-12.97,lng:-38.51, city:"Salvador/BA", type:"SQL Injection", sev:"medium", ip_src:"194.36.144.87", ip_dst:"200.150.1.8", port:5432, country:"Holanda"},
   {lat:-2.53,lng:-44.30, city:"São Luís/MA", type:"Port Scan", sev:"low", ip_src:"77.83.36.22", ip_dst:"177.8.33.9", port:0, country:"Alemanha"},
-  // Centro-Oeste / Norte
+
   {lat:-15.77,lng:-47.92, city:"Brasília/DF", type:"Spear Phishing", sev:"critical", ip_src:"79.137.35.195", ip_dst:"200.26.44.1", port:25, country:"Rússia"},
   {lat:-20.44,lng:-54.64, city:"Campo Grande/MS", type:"Brute Force FTP", sev:"medium", ip_src:"45.135.232.7", ip_dst:"177.99.2.11", port:21, country:"EUA"},
   {lat:-1.46,lng:-48.50, city:"Belém/PA", type:"Port Scan", sev:"low", ip_src:"194.61.24.99", ip_dst:"200.152.44.3", port:0, country:"China"},
   {lat:-3.10,lng:-60.02, city:"Manaus/AM", type:"Brute Force SSH", sev:"high", ip_src:"45.155.204.23", ip_dst:"177.134.2.8", port:22, country:"China"},
   {lat:-10.21,lng:-48.36, city:"Palmas/TO", type:"Exploit CVE-2024-0519", sev:"high", ip_src:"89.185.24.8", ip_dst:"177.33.4.12", port:9090, country:"Índia"},
-  // Honeypot markers
+
   {lat:-23.54,lng:-46.65, city:"HONEYPOT São Paulo", type:"Cowrie SSH Trap", sev:"critical", ip_src:"múltiplos IPs", ip_dst:"177.100.0.1", port:22, country:"—", isHoneypot:true},
   {lat:-8.06,lng:-34.89, city:"HONEYPOT Recife", type:"Cowrie SSH Trap", sev:"high", ip_src:"múltiplos IPs", ip_dst:"200.202.0.1", port:22, country:"—", isHoneypot:true},
 ];
@@ -615,7 +586,6 @@ attacks.forEach(a => {
     .addTo(map);
 });
 
-// Draw attack arcs (polylines simulating origin→destination)
 const arcPairs = [
   {from:[-23.55,-46.63], to:[-22.90,-43.17], sev:'critical'},
   {from:[-22.90,-43.17], to:[-15.77,-47.92], sev:'high'},
@@ -637,7 +607,6 @@ arcPairs.forEach(p => {
   }).addTo(map);
 });
 
-// ── FEED ──
 const feedData = [
   {sev:'critical', type:'DDoS UDP Flood', detail:'45.155.91.7 → 200.145.12.88:80', time:'agora'},
   {sev:'critical', type:'Brute Force RDP', detail:'45.66.209.10 → 179.108.55.3:3389', time:'1min'},
@@ -673,7 +642,6 @@ feedData.forEach(f => {
     </div>`;
 });
 
-// ── TICKER ──
 const tickerItems = [
   {sev:'crit', text:'[CRÍTICO] DDoS UDP 45.155.91.7 → São Paulo/SP — 48Gbps'},
   {sev:'high', text:'[ALTO] Brute Force SSH 185.196.8.199 → Fortaleza/CE — 4.200 tentativas'},
@@ -691,7 +659,6 @@ const inner = document.getElementById('ticker-inner');
   inner.innerHTML += `<span class="tick-item"><span class="${cls}">${t.text}</span> &nbsp;|&nbsp; </span>`;
 });
 
-// ── TIMELINE CHART ──
 const labels = ['00h','01h','02h','03h','04h','05h','06h','07h','08h','09h','10h','11h'];
 const data   = [4200,3800,5100,4700,6200,7800,9100,11400,14200,16700,18200,15800];
 
@@ -727,7 +694,6 @@ new Chart(document.getElementById('timelineChart'), {
   }
 });
 
-// ── LIVE COUNTER SIMULATION ──
 let total = 182419, ips = 24881, crits = 12, atkPerMin = 347;
 setInterval(() => {
   const add = Math.floor(Math.random() * 12) + 3;
@@ -744,7 +710,6 @@ setInterval(() => {
   document.getElementById('cnt-crit').textContent   = c.toLocaleString('pt-BR');
 }, 1800);
 
-// ── FILTER PILLS ──
 document.querySelectorAll('.fpill').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.fpill').forEach(b => b.classList.remove('active'));
