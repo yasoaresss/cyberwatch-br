@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CyberWatch BR - Monitoramento de Ataques</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; font-family: Arial, sans-serif; font-size: 13px; }
+
+  body {
+    background: #0d1117;
+    color: #c9d1d9;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* TOPBAR */
+  #topbar {
+    height: 48px;
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+  .logo {
+    font-size: 16px;
+    font-weight: bold;
+    color: #58a6ff;
+    letter-spacing: 1px;
+  }
+  .logo span { color: #f85149; }
+  .divider { width: 1px; height: 24px; background: #30363d; }
+  .live-badge {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11px; color: #8b949e;
+  }
+  .live-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #3fb950;
+    animation: blink 1.5s infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  .top-stats { display: flex; gap: 20px; }
+  .ts { display: flex; flex-direction: column; }
+  .ts-label { font-size: 9px; color: #6e7681; text-transform: uppercase; letter-spacing: 1px; }
+  .ts-val { font-size: 14px; font-weight: bold; font-family: monospace; color: #58a6ff; }
+  .ts-val.red { color: #f85149; }
+  .ts-val.green { color: #3fb950; }
+
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  #clock { font-family: monospace; font-size: 12px; color: #8b949e; }
+  .btn {
+    padding: 4px 12px;
+    background: #21262d;
+    border: 1px solid #30363d;
+    color: #c9d1d9;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+  .btn:hover { background: #30363d; }
+  .btn.active { border-color: #58a6ff; color: #58a6ff; }
+  .btn-login { border-color: #f85149; color: #f85149; }
+  .btn-login:hover { background: rgba(248,81,73,.1); }
+
+  /* MAIN */
+  #main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 240px 1fr 270px;
+    overflow: hidden;
+    gap: 1px;
+    background: #30363d;
+  }
+
+  .panel {
+    background: #0d1117;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .panel-title {
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: bold;
+    color: #8b949e;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid #21262d;
+    flex-shrink: 0;
+  }
+
+  .panel-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+  }
+  .panel-body::-webkit-scrollbar { width: 4px; }
+  .panel-body::-webkit-scrollbar-thumb { background: #30363d; }
+
+  /* STAT CARDS */
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; }
+  .stat-card {
+    background: #161b22;
+    padding: 10px 12px;
+    border-left: 3px solid #30363d;
+  }
+  .stat-card.crit { border-color: #f85149; }
+  .stat-card.high { border-color: #e3b341; }
+  .stat-card.med  { border-color: #d29922; }
+  .stat-card.low  { border-color: #3fb950; }
+  .stat-card.blue { border-color: #58a6ff; }
+  .stat-card.pink { border-color: #bc8cff; }
+  .sc-label { font-size: 9px; color: #6e7681; text-transform: uppercase; }
+  .sc-val { font-size: 20px; font-weight: bold; font-family: monospace; margin: 2px 0; }
+  .sc-val.crit { color: #f85149; }
+  .sc-val.high { color: #e3b341; }
+  .sc-val.med  { color: #d29922; }
+  .sc-val.low  { color: #3fb950; }
+  .sc-val.blue { color: #58a6ff; }
+  .sc-val.pink { color: #bc8cff; }
+  .sc-sub { font-size: 10px; color: #6e7681; }
+
+  /* BARRAS */
+  .section-title {
+    padding: 8px 12px 4px;
+    font-size: 10px;
+    color: #6e7681;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .bar-row { padding: 3px 12px; }
+  .bar-top { display: flex; justify-content: space-between; margin-bottom: 2px; }
+  .bar-name { font-size: 11px; color: #8b949e; }
+  .bar-pct  { font-size: 11px; font-family: monospace; color: #58a6ff; }
+  .bar-track { height: 4px; background: #21262d; border-radius: 2px; }
+  .bar-fill  { height: 4px; border-radius: 2px; }
+
+  /* ORIGENS */
+  .orig-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 12px;
+  }
+  .orig-row:hover { background: #161b22; }
+  .orig-num { font-family: monospace; font-size: 10px; color: #6e7681; width: 18px; }
+  .orig-flag { font-size: 14px; }
+  .orig-name { flex: 1; font-size: 11px; color: #8b949e; }
+  .orig-count { font-family: monospace; font-size: 11px; color: #f85149; }
+
+  /* MAP */
+  #center-panel { position: relative; }
+  #map-header {
+    padding: 6px 12px;
+    background: #161b22;
+    border-bottom: 1px solid #21262d;
+    display: flex; align-items: center; gap: 8px;
+    flex-shrink: 0;
+    font-size: 11px; color: #8b949e;
+  }
+  .filter-pills { margin-left: auto; display: flex; gap: 4px; }
+  .fpill {
+    padding: 2px 8px; font-size: 10px;
+    background: #21262d; border: 1px solid #30363d;
+    color: #6e7681; cursor: pointer; border-radius: 3px;
+  }
+  .fpill:hover, .fpill.active { border-color: #58a6ff; color: #58a6ff; }
+  #map { flex: 1; }
+  .leaflet-container { background: #0d1117 !important; }
+
+  /* LEGENDA */
+  #map-legend {
+    position: absolute; bottom: 36px; left: 10px; z-index: 500;
+    background: rgba(22,27,34,.9);
+    border: 1px solid #30363d;
+    padding: 6px 10px;
+    border-radius: 4px;
+  }
+  .leg-row { display: flex; align-items: center; gap: 6px; padding: 1px 0; }
+  .leg-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .leg-label { font-size: 10px; color: #8b949e; }
+
+  /* TICKER */
+  #ticker {
+    height: 28px;
+    background: #161b22;
+    border-top: 1px solid #21262d;
+    display: flex; align-items: center;
+    overflow: hidden; flex-shrink: 0;
+  }
+  #ticker-label {
+    padding: 0 10px; font-size: 10px; color: #f85149;
+    border-right: 1px solid #30363d;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  #ticker-track { flex: 1; overflow: hidden; }
+  #ticker-inner {
+    display: flex; align-items: center; height: 28px;
+    white-space: nowrap;
+    animation: scroll 55s linear infinite;
+  }
+  @keyframes scroll { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+  .tick-item { padding: 0 16px; font-size: 10px; font-family: monospace; color: #8b949e; }
+  .tick-crit { color: #f85149; }
+  .tick-high { color: #e3b341; }
+  .tick-low  { color: #3fb950; }
+
+  /* FEED */
+  .feed-item {
+    padding: 7px 12px;
+    border-bottom: 1px solid #161b22;
+    cursor: pointer;
+  }
+  .feed-item:hover { background: #161b22; }
+  .feed-top { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+  .badge {
+    padding: 1px 6px; font-size: 9px; font-family: monospace;
+    border-radius: 3px; font-weight: bold;
+  }
+  .badge.crit { background: rgba(100,0,20,.25); color: #8b0000; border: 1px solid rgba(139,0,0,.5); }
+  .badge.high { background: rgba(200,30,30,.15); color: #e03030; border: 1px solid rgba(200,30,30,.4); }
+  .badge.med  { background: rgba(220,120,0,.15); color: #e07800; border: 1px solid rgba(220,120,0,.4); }
+  .badge.low  { background: rgba(31,111,235,.15); color: #388bfd; border: 1px solid rgba(31,111,235,.4); }
+  .feed-time { font-size: 10px; color: #6e7681; margin-left: auto; }
+  .feed-type { font-size: 11px; font-weight: bold; color: #c9d1d9; }
+  .feed-detail { font-size: 10px; font-family: monospace; color: #6e7681; margin-top: 1px; }
+
+  /* CHART */
+  .chart-block { padding: 8px 12px; flex-shrink: 0; border-top: 1px solid #21262d; }
+  .chart-label { font-size: 10px; color: #6e7681; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .chart-wrap  { height: 110px; }
+
+  /* POPUP */
+  .leaflet-popup-content-wrapper {
+    background: #161b22 !important;
+    border: 1px solid #30363d !important;
+    border-radius: 4px !important;
+    color: #c9d1d9 !important;
+    box-shadow: none !important;
+  }
+  .leaflet-popup-tip { background: #161b22 !important; }
+  .popup-body { font-family: monospace; font-size: 11px; line-height: 1.8; min-width: 190px; }
+  .popup-title { font-family: Arial; font-size: 13px; font-weight: bold; margin-bottom: 4px; color: #58a6ff; }
+  .popup-key { color: #6e7681; }
+  .popup-val { color: #c9d1d9; }
+
+  /* MARKER */
+  .mk { width: 8px; height: 8px; border-radius: 50%; border: 1px solid rgba(255,255,255,.25); }
+  .mk.crit { background: #f85149; }
+  .mk.high { background: #e3b341; }
+  .mk.med  { background: #d29922; }
+  .mk.low  { background: #3fb950; }
+  .mk.hp   { background: #58a6ff; }
+
+  /* MODAL LOGIN */
+  #modal-bg {
+    display: none; position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0,0,0,.7);
+    align-items: center; justify-content: center;
+  }
+  #modal-box {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 28px 24px;
+    width: 320px;
+    position: relative;
+  }
+  #modal-box h3 {
+    font-size: 15px; color: #58a6ff;
+    margin-bottom: 4px; text-align: center;
+  }
+  #modal-box p.sub {
+    font-size: 10px; color: #6e7681; text-align: center;
+    margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px;
+  }
+  #modal-box label { font-size: 11px; color: #6e7681; display: block; margin-bottom: 4px; }
+  #modal-box input {
+    width: 100%; padding: 8px 10px;
+    background: #0d1117; border: 1px solid #30363d;
+    color: #c9d1d9; font-size: 13px; border-radius: 4px;
+    margin-bottom: 14px; outline: none;
+  }
+  #modal-box input:focus { border-color: #58a6ff; }
+  #modal-box .btn-entrar {
+    width: 100%; padding: 9px;
+    background: #1f6feb; border: none;
+    color: #fff; font-size: 13px; font-weight: bold;
+    border-radius: 4px; cursor: pointer;
+  }
+  #modal-box .btn-entrar:hover { background: #388bfd; }
+  #modal-close {
+    position: absolute; top: 10px; right: 12px;
+    background: none; border: none; color: #6e7681;
+    font-size: 16px; cursor: pointer;
+  }
+  #modal-msg { font-size: 11px; color: #f85149; text-align: center; margin-top: 10px; min-height: 14px; }
+  .modal-hint {
+    margin-top: 14px; padding-top: 12px; border-top: 1px solid #21262d;
+    font-size: 10px; color: #6e7681; text-align: center; line-height: 1.9;
+    font-family: monospace;
+  }
+  .modal-hint b { color: #8b949e; }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div id="topbar">
+  <div class="logo">Cyber<span>Watch</span> BR</div>
+  <div class="divider"></div>
+  <div class="live-badge">
+    <div class="live-dot"></div>
+    Monitoramento em tempo real
+  </div>
+  <div class="divider"></div>
+  <div class="top-stats">
+    <div class="ts">
+      <div class="ts-label">Ataques/min</div>
+      <div class="ts-val red" id="atk-min">347</div>
+    </div>
+    <div class="ts">
+      <div class="ts-label">Total hoje</div>
+      <div class="ts-val" id="atk-total">182.419</div>
+    </div>
+    <div class="ts">
+      <div class="ts-label">IPs únicos</div>
+      <div class="ts-val" id="atk-ips">24.881</div>
+    </div>
+    <div class="ts">
+      <div class="ts-label">Países</div>
+      <div class="ts-val green">63</div>
+    </div>
+    <div class="ts">
+      <div class="ts-label">Críticos</div>
+      <div class="ts-val red" id="atk-crit">12</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <button class="btn active">Ao Vivo</button>
+    <button class="btn">Histórico</button>
+    <button class="btn">Relatório</button>
+    <div id="clock">--:--:--</div>
+    <div class="divider"></div>
+    <button class="btn btn-login" onclick="document.getElementById('modal-bg').style.display='flex'">Login</button>
+  </div>
+</div>
+
+<!-- MODAL DE LOGIN -->
+<div id="modal-bg">
+  <div id="modal-box">
+    <button id="modal-close" onclick="closeModal()">✕</button>
+    <h3>CyberWatch BR</h3>
+    <p class="sub">Acesso ao sistema</p>
+    <label>Usuário</label>
+    <input type="text" id="login-user" placeholder="email@exemplo.com">
+    <label>Senha</label>
+    <input type="password" id="login-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="btn-entrar" onclick="doLogin()">Entrar</button>
+    <div id="modal-msg"></div>
+    <div class="modal-hint">
+      <b>admin</b> / admin123 — Administrador<br>
+      <b>analista</b> / analista123 — Analista
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- PAINEL ESQUERDO -->
+  <div class="panel">
+    <div class="panel-title">Métricas</div>
+    <div class="panel-body">
+
+      <div class="stat-grid">
+        <div class="stat-card crit">
+          <div class="sc-label">Crítico</div>
+          <div class="sc-val crit" id="cnt-crit">1.247</div>
+          <div class="sc-sub">▲ 18% vs ontem</div>
+        </div>
+        <div class="stat-card high">
+          <div class="sc-label">Alto</div>
+          <div class="sc-val high" id="cnt-high">8.834</div>
+          <div class="sc-sub">▲ 7% vs ontem</div>
+        </div>
+        <div class="stat-card med">
+          <div class="sc-label">Médio</div>
+          <div class="sc-val med">34.112</div>
+          <div class="sc-sub">▲ 3% vs ontem</div>
+        </div>
+        <div class="stat-card low">
+          <div class="sc-label">Baixo</div>
+          <div class="sc-val low">138.226</div>
+          <div class="sc-sub">▼ 2% vs ontem</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="sc-label">Honeypot SP</div>
+          <div class="sc-val blue">4.392</div>
+          <div class="sc-sub">VPS São Paulo</div>
+        </div>
+        <div class="stat-card pink">
+          <div class="sc-label">Honeypot RE</div>
+          <div class="sc-val pink">2.108</div>
+          <div class="sc-sub">VPS Recife</div>
+        </div>
+      </div>
+
+      <div class="section-title">Tipos de Ataque</div>
+      <div class="bar-row">
+        <div class="bar-top"><span class="bar-name">Brute Force SSH</span><span class="bar-pct">34%</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:34%;background:#f85149"></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-top"><span class="bar-name">Port Scan</span><span class="bar-pct">21%</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:21%;background:#e3b341"></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-top"><span class="bar-name">DDoS / Flood</span><span class="bar-pct">18%</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:18%;background:#f85149"></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-top"><span class="bar-name">SQL Injection</span><span class="bar-pct">11%</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:11%;background:#d29922"></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-top"><span class="bar-name">Phishing / C2</span><span class="bar-pct">8%</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:8%;background:#58a6ff"></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-top"><span class="bar-name">Exploit CVE</span><span class="bar-pct">5%</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:5%;background:#bc8cff"></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-top"><span class="bar-name">Outros</span><span class="bar-pct">3%</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:3%;background:#3fb950"></div></div>
+      </div>
+
+      <div class="section-title">Top Origens</div>
+      <div class="orig-row"><div class="orig-num">#1</div><div class="orig-flag">🇨🇳</div><div class="orig-name">China</div><div class="orig-count">38.412</div></div>
+      <div class="orig-row"><div class="orig-num">#2</div><div class="orig-flag">🇷🇺</div><div class="orig-name">Rússia</div><div class="orig-count">22.187</div></div>
+      <div class="orig-row"><div class="orig-num">#3</div><div class="orig-flag">🇺🇸</div><div class="orig-name">EUA</div><div class="orig-count">18.903</div></div>
+      <div class="orig-row"><div class="orig-num">#4</div><div class="orig-flag">🇧🇷</div><div class="orig-name">Brasil</div><div class="orig-count">14.221</div></div>
+      <div class="orig-row"><div class="orig-num">#5</div><div class="orig-flag">🇳🇱</div><div class="orig-name">Holanda</div><div class="orig-count">9.447</div></div>
+      <div class="orig-row"><div class="orig-num">#6</div><div class="orig-flag">🇩🇪</div><div class="orig-name">Alemanha</div><div class="orig-count">7.831</div></div>
+      <div class="orig-row"><div class="orig-num">#7</div><div class="orig-flag">🇰🇷</div><div class="orig-name">Coreia do Sul</div><div class="orig-count">5.604</div></div>
+      <div class="orig-row"><div class="orig-num">#8</div><div class="orig-flag">🇮🇳</div><div class="orig-name">Índia</div><div class="orig-count">4.218</div></div>
+
+    </div>
+  </div>
+
+  <!-- MAPA -->
+  <div class="panel" id="center-panel" style="position:relative;display:flex;flex-direction:column;">
+    <div id="map-header">
+      <span>🇧🇷 Mapa de Ataques — Brasil</span>
+      <div class="filter-pills">
+        <button class="fpill active">Todos</button>
+        <button class="fpill">Crítico</button>
+        <button class="fpill">DDoS</button>
+        <button class="fpill">Brute Force</button>
+        <button class="fpill">Honeypot</button>
+      </div>
+    </div>
+    <div id="map" style="flex:1;"></div>
+    <div id="map-legend">
+      <div class="leg-row"><div class="leg-dot" style="background:#f85149"></div><div class="leg-label">Crítico</div></div>
+      <div class="leg-row"><div class="leg-dot" style="background:#e3b341"></div><div class="leg-label">Alto</div></div>
+      <div class="leg-row"><div class="leg-dot" style="background:#d29922"></div><div class="leg-label">Médio</div></div>
+      <div class="leg-row"><div class="leg-dot" style="background:#3fb950"></div><div class="leg-label">Baixo</div></div>
+      <div class="leg-row"><div class="leg-dot" style="background:#58a6ff"></div><div class="leg-label">Honeypot</div></div>
+    </div>
+    <div id="ticker">
+      <div id="ticker-label">▶ LIVE</div>
+      <div id="ticker-track"><div id="ticker-inner"></div></div>
+    </div>
+  </div>
+
+  <!-- PAINEL DIREITO -->
+  <div class="panel">
+    <div class="panel-title">Incidentes Recentes</div>
+    <div class="panel-body" id="feed-body"></div>
+    <div class="chart-block">
+      <div class="chart-label">Ataques nas últimas 12h</div>
+      <div class="chart-wrap"><canvas id="chart"></canvas></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// RELÓGIO
+function tick() {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('pt-BR', {hour12:false}) + ' BRT';
+}
+setInterval(tick, 1000); tick();
+
+// MAPA
+const map = L.map('map', { center: [-14.2, -51.9], zoom: 4, zoomControl: true });
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© OpenStreetMap, © CARTO', maxZoom: 18
+}).addTo(map);
+
+// Contorno do Brasil — cascata de fontes
+async function loadBorder() {
+  const style = { color:'#1a6aa0', weight:1.5, opacity:.9, fillColor:'#051525', fillOpacity:.4 };
+  try {
+    const r = await fetch('https://servicodados.ibge.gov.br/api/v3/malhas/paises/BR?formato=application/vnd.geo+json&qualidade=intermediario', {signal: AbortSignal.timeout(5000)});
+    if (r.ok) { L.geoJSON(await r.json(), {style}).addTo(map); return; }
+  } catch(e) {}
+  try {
+    await new Promise(res => { const s = document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js'; s.onload=res; document.head.appendChild(s); });
+    const r = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json', {signal: AbortSignal.timeout(5000)});
+    if (r.ok) {
+      const topo = await r.json();
+      const geo = topojson.feature(topo, topo.objects.countries);
+      L.geoJSON({...geo, features: geo.features.filter(f => f.id === '076')}, {style}).addTo(map);
+    }
+  } catch(e) {}
+}
+loadBorder();
+
+// MARCADORES
+const attacks = [
+  {lat:-23.55,lng:-46.63, city:"São Paulo/SP",    type:"DDoS UDP Flood",      sev:"critical", src:"45.155.91.7",    dst:"200.145.12.88",  port:80,   country:"Rússia"},
+  {lat:-22.90,lng:-43.17, city:"Rio de Janeiro/RJ",type:"Brute Force RDP",    sev:"critical", src:"45.66.209.10",   dst:"179.108.55.3",   port:3389, country:"Holanda"},
+  {lat:-15.77,lng:-47.92, city:"Brasília/DF",     type:"Spear Phishing",      sev:"critical", src:"79.137.35.195",  dst:"200.26.44.1",    port:25,   country:"China"},
+  {lat:-3.71, lng:-38.54, city:"Fortaleza/CE",    type:"Brute Force SSH",     sev:"high",     src:"185.196.8.199",  dst:"179.188.44.2",   port:22,   country:"Ucrânia"},
+  {lat:-30.03,lng:-51.22, city:"Porto Alegre/RS", type:"DDoS TCP SYN",        sev:"high",     src:"103.241.200.4",  dst:"179.97.10.21",   port:80,   country:"China"},
+  {lat:-19.92,lng:-43.94, city:"Belo Horizonte/MG",type:"SQL Injection",      sev:"high",     src:"103.42.71.8",    dst:"200.239.8.11",   port:3306, country:"Índia"},
+  {lat:-12.97,lng:-38.51, city:"Salvador/BA",     type:"Exploit CVE-2024-1234",sev:"high",    src:"185.220.101.14", dst:"177.23.44.12",   port:443,  country:"EUA"},
+  {lat:-25.42,lng:-49.27, city:"Curitiba/PR",     type:"Brute Force SSH",     sev:"medium",   src:"45.141.21.9",    dst:"187.45.22.3",    port:22,   country:"Romênia"},
+  {lat:-8.05, lng:-34.88, city:"Recife/PE",       type:"Port Scan",           sev:"medium",   src:"89.248.167.12",  dst:"200.20.10.5",    port:0,    country:"Holanda"},
+  {lat:-27.59,lng:-48.54, city:"Florianópolis/SC",type:"SQL Injection",       sev:"medium",   src:"194.36.144.87",  dst:"200.150.1.8",    port:5432, country:"Bulgária"},
+  {lat:-2.52, lng:-44.30, city:"São Luís/MA",     type:"Port Scan",           sev:"low",      src:"77.247.181.162", dst:"200.18.7.14",    port:0,    country:"Alemanha"},
+  {lat:-5.18, lng:-37.34, city:"Mossoró/RN",      type:"Port Scan",           sev:"low",      src:"77.83.36.22",    dst:"177.8.33.9",     port:0,    country:"França"},
+  {lat:-1.46, lng:-48.50, city:"Belém/PA",        type:"Port Scan",           sev:"low",      src:"194.61.24.99",   dst:"200.152.44.3",   port:0,    country:"China"},
+  {lat:-3.10, lng:-60.02, city:"Manaus/AM",       type:"Brute Force SSH",     sev:"high",     src:"45.155.204.23",  dst:"177.134.2.8",    port:22,   country:"China"},
+  {lat:-10.21,lng:-48.36, city:"Palmas/TO",       type:"Exploit CVE-2024-0519",sev:"high",    src:"89.185.24.8",    dst:"177.33.4.12",    port:9090, country:"Índia"},
+  // Honeypots
+  {lat:-23.54,lng:-46.65, city:"Honeypot — São Paulo", type:"Cowrie SSH Trap", sev:"hp", src:"múltiplos IPs", dst:"177.100.0.1", port:22, country:"—"},
+  {lat:-8.06, lng:-34.89, city:"Honeypot — Recife",    type:"Cowrie SSH Trap", sev:"hp", src:"múltiplos IPs", dst:"200.202.0.1", port:22, country:"—"},
+];
+
+const sevColor = {critical:'#f85149', high:'#e3b341', medium:'#d29922', low:'#3fb950', hp:'#58a6ff'};
+const sevLabel = {critical:'CRÍTICO', high:'ALTO', medium:'MÉDIO', low:'BAIXO', hp:'HONEYPOT'};
+
+attacks.forEach(a => {
+  const icon = L.divIcon({
+    className: '',
+    html: `<div class="mk ${a.sev === 'hp' ? 'hp' : a.sev === 'critical' ? 'crit' : a.sev === 'high' ? 'high' : a.sev === 'medium' ? 'med' : 'low'}"></div>`,
+    iconSize: [8,8], iconAnchor: [4,4]
+  });
+  L.marker([a.lat, a.lng], {icon}).bindPopup(`
+    <div class="popup-body">
+      <div class="popup-title">${a.city}</div>
+      <div><span class="popup-key">Tipo: </span><span class="popup-val">${a.type}</span></div>
+      <div><span class="popup-key">Severidade: </span><span class="popup-val" style="color:${sevColor[a.sev]}">${sevLabel[a.sev]}</span></div>
+      <div><span class="popup-key">IP Origem: </span><span class="popup-val">${a.src}</span></div>
+      <div><span class="popup-key">IP Destino: </span><span class="popup-val">${a.dst}</span></div>
+      <div><span class="popup-key">Porta: </span><span class="popup-val">${a.port || 'N/A'}</span></div>
+      <div><span class="popup-key">País: </span><span class="popup-val">${a.country}</span></div>
+    </div>`, {maxWidth:240}).addTo(map);
+});
+
+// ARCOS
+[[[-23.55,-46.63],[-22.90,-43.17],'critical'],
+ [[-22.90,-43.17],[-15.77,-47.92],'high'],
+ [[-30.03,-51.22],[-23.55,-46.63],'medium'],
+ [[-3.71,-38.54], [-15.77,-47.92],'high'],
+ [[-8.05,-34.88], [-19.92,-43.94],'critical'],
+ [[-25.42,-49.27],[-22.90,-43.17],'medium']
+].forEach(([a,b,s]) => {
+  L.polyline([a,b], {color: sevColor[s], weight:1, opacity:.3, dashArray:'4 6'}).addTo(map);
+});
+
+// FEED
+const incidents = [
+  {sev:'critical', type:'DDoS UDP Flood',       detail:'45.155.91.7 → 200.145.12.88:80',    time:'agora'},
+  {sev:'critical', type:'Brute Force RDP',       detail:'45.66.209.10 → 179.108.55.3:3389',  time:'1min'},
+  {sev:'critical', type:'Spear Phishing',        detail:'79.137.35.195 → 200.26.44.1:25',    time:'2min'},
+  {sev:'high',     type:'SQL Injection',         detail:'103.42.71.8 → 200.239.8.11:3306',   time:'3min'},
+  {sev:'high',     type:'Brute Force SSH',       detail:'185.196.8.199 → 179.188.44.2:22',   time:'4min'},
+  {sev:'high',     type:'DDoS TCP SYN',          detail:'103.241.200.4 → 179.97.10.21:80',   time:'5min'},
+  {sev:'high',     type:'Exploit CVE-2024-1234', detail:'185.220.101.14 → 177.23.44.12:443', time:'6min'},
+  {sev:'medium',   type:'Port Scan',             detail:'89.248.167.12 → 200.20.10.5',       time:'7min'},
+  {sev:'medium',   type:'Brute Force SSH',       detail:'45.141.21.9 → 187.45.22.3:22',      time:'8min'},
+  {sev:'medium',   type:'SQL Injection',         detail:'194.36.144.87 → 200.150.1.8:5432',  time:'9min'},
+  {sev:'low',      type:'Port Scan',             detail:'77.247.181.162 → 200.18.7.14',      time:'10min'},
+  {sev:'low',      type:'Port Scan',             detail:'77.83.36.22 → 177.8.33.9',          time:'11min'},
+];
+
+const feed = document.getElementById('feed-body');
+incidents.forEach(i => {
+  feed.innerHTML += `
+    <div class="feed-item">
+      <div class="feed-top">
+        <span class="badge ${i.sev==='critical'?'crit':i.sev==='medium'?'med':i.sev}">${sevLabel[i.sev]||i.sev.toUpperCase()}</span>
+        <span class="feed-time">${i.time}</span>
+      </div>
+      <div class="feed-type">${i.type}</div>
+      <div class="feed-detail">${i.detail}</div>
+    </div>`;
+});
+
+// TICKER
+const ticks = [
+  {cls:'tick-crit', txt:'[CRÍTICO] DDoS UDP 45.155.91.7 → São Paulo/SP — 48Gbps'},
+  {cls:'tick-high', txt:'[ALTO] Brute Force SSH 185.196.8.199 → Fortaleza/CE — 4.200 tentativas'},
+  {cls:'tick-crit', txt:'[CRÍTICO] Spear Phishing 79.137.35.195 → Brasília/DF'},
+  {cls:'tick-high', txt:'[ALTO] Exploit CVE-2024-4966 194.165.16.11 → Sorocaba/SP'},
+  {cls:'tick-crit', txt:'[CRÍTICO] Brute Force RDP 45.66.209.10 → Rio de Janeiro/RJ'},
+  {cls:'tick-low',  txt:'[BAIXO] Port Scan 77.83.36.22 → São Luís/MA — 65.535 portas'},
+  {cls:'tick-high', txt:'[ALTO] SQL Injection 103.42.71.8 → Belo Horizonte/MG'},
+];
+const ti = document.getElementById('ticker-inner');
+[...ticks,...ticks].forEach(t => {
+  ti.innerHTML += `<span class="tick-item"><span class="${t.cls}">${t.txt}</span> &nbsp;|&nbsp; </span>`;
+});
+
+// GRÁFICO
+new Chart(document.getElementById('chart'), {
+  type: 'line',
+  data: {
+    labels: ['00h','01h','02h','03h','04h','05h','06h','07h','08h','09h','10h','11h'],
+    datasets: [{
+      data: [4200,3800,5100,4700,6200,7800,9100,11400,14200,16700,18200,15800],
+      borderColor: '#58a6ff',
+      backgroundColor: 'rgba(88,166,255,.06)',
+      borderWidth: 1.5,
+      pointRadius: 2,
+      fill: true,
+      tension: 0.4,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color:'#6e7681', font:{size:9} }, grid: { color:'rgba(48,54,61,.6)' } },
+      y: { ticks: { color:'#6e7681', font:{size:9}, callback: v => v>=1000?(v/1000).toFixed(0)+'k':v }, grid: { color:'rgba(48,54,61,.6)' } }
+    }
+  }
+});
+
+// CONTADORES LIVE
+let total=182419, ips=24881, crits=12, apm=347;
+setInterval(() => {
+  total += Math.floor(Math.random()*12)+3;
+  ips   += Math.random()>.7 ? 1 : 0;
+  apm    = 330 + Math.floor(Math.random()*40);
+  if (Math.random()>.92) crits++;
+  document.getElementById('atk-total').textContent = total.toLocaleString('pt-BR');
+  document.getElementById('atk-ips').textContent   = ips.toLocaleString('pt-BR');
+  document.getElementById('atk-min').textContent   = apm;
+  document.getElementById('atk-crit').textContent  = crits;
+  document.getElementById('cnt-crit').textContent  = (1247+Math.floor((Math.random()-.5)*20)).toLocaleString('pt-BR');
+  document.getElementById('cnt-high').textContent  = (8834+Math.floor((Math.random()-.5)*40)).toLocaleString('pt-BR');
+}, 1800);
+
+// FILTROS
+document.querySelectorAll('.fpill').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.fpill').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+}));
+document.querySelectorAll('.btn').forEach(b => b.addEventListener('click', () => {
+  if (b.classList.contains('btn-login')) return;
+  document.querySelectorAll('.btn').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+}));
+
+// LOGIN
+const USERS = {
+  admin:    { pass:'admin123',    role:'Administrador' },
+  analista: { pass:'analista123', role:'Analista' },
+};
+
+function closeModal() {
+  document.getElementById('modal-bg').style.display = 'none';
+  document.getElementById('modal-msg').textContent = '';
+}
+
+function doLogin() {
+  const user = document.getElementById('login-user').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  const msg  = document.getElementById('modal-msg');
+  if (!user || !pass) { msg.textContent = 'Preencha todos os campos.'; return; }
+  if (USERS[user] && USERS[user].pass === pass) {
+    closeModal();
+    document.getElementById('login-user').value = '';
+    document.getElementById('login-pass').value = '';
+    const btn = document.querySelector('.btn-login');
+    btn.textContent = user + ' (' + USERS[user].role + ')';
+    btn.onclick = null;
+  } else {
+    msg.textContent = 'Usuário ou senha incorretos.';
+    document.getElementById('login-pass').value = '';
+  }
+}
+</script>
+</body>
+</html>
